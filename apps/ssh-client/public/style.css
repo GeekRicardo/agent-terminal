@@ -1,0 +1,173 @@
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #111827;
+  color: #e5e7eb;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+/* ─── 连接表单 ─────────────────────────────────────────────── */
+
+#connectForm {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  padding: 24px;
+}
+
+#connectForm h1 {
+  font-size: 22px;
+  margin: 0 0 24px;
+}
+
+#sshForm {
+  background: #0f172a;
+  border: 1px solid #263041;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  width: 100%;
+  max-width: 420px;
+}
+
+#sshForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#sshForm span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+#sshForm input {
+  background: #172033;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #e5e7eb;
+  font: inherit;
+  padding: 9px 10px;
+}
+
+#sshForm details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#sshForm details summary {
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+#sshForm details label {
+  margin-top: 8px;
+}
+
+#connectBtn {
+  background: #2563eb;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 4px;
+  padding: 10px;
+}
+
+#connectBtn:hover { filter: brightness(1.1); }
+#connectBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#statusMsg {
+  color: #fbbf24;
+  font-size: 13px;
+  min-height: 20px;
+  text-align: center;
+}
+
+#statusMsg.error { color: #f87171; }
+
+.footer {
+  color: #475569;
+  font-size: 12px;
+  margin-top: 24px;
+  text-align: center;
+}
+
+/* ─── 终端区域 ─────────────────────────────────────────────── */
+
+#terminalArea {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#terminalArea.hidden { display: none; }
+
+#topbar {
+  align-items: center;
+  border-bottom: 1px solid #263041;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 16px;
+}
+
+#topbar div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+#topbar span {
+  color: #94a3b8;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#disconnectBtn {
+  background: #dc2626;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 16px;
+}
+
+#disconnectBtn:hover { background: #b91c1c; }
+
+#terminal {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+}
+
+#terminal .xterm { height: 100%; }
+#terminal .xterm-viewport { overflow-y: auto; }
+
+#statusBar {
+  border-top: 1px solid #263041;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 6px 12px;
+}

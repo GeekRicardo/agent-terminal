@@ -1,0 +1,366 @@
+@font-face {
+  font-family: 'MapleMonoNFLocal';
+  font-style: normal;
+  font-weight: 400;
+  src:
+    url('/fonts/MapleMono-NF-CN-Regular.ttf') format('truetype'),
+    local('Maple Mono NF CN Regular'),
+    local('Maple Mono NF CN');
+}
+
+@font-face {
+  font-family: 'MapleMonoNFLocal';
+  font-style: normal;
+  font-weight: 700;
+  src:
+    url('/fonts/MapleMono-NF-CN-Bold.ttf') format('truetype'),
+    local('Maple Mono NF CN Bold'),
+    local('Maple Mono NF CN');
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #e5e7eb;
+  background: #111827;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  color: inherit;
+  background: #2563eb;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+input,
+select {
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #e5e7eb;
+  font: inherit;
+  padding: 9px 10px;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100vh;
+}
+
+.sidebar {
+  border-right: 1px solid #263041;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebarHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+}
+
+.sidebarHeader h1 {
+  font-size: 16px;
+  margin: 0;
+}
+
+.sessionList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 12px;
+}
+
+.session {
+  background: #172033;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+}
+
+.session.active {
+  outline: 2px solid #60a5fa;
+}
+
+.sessionTitle {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionCommand {
+  color: #64748b;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessionMeta {
+  align-items: center;
+  color: #94a3b8;
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+}
+
+.sessionIdButton {
+  background: transparent;
+  border-radius: 4px;
+  color: #93c5fd;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 0 2px;
+}
+
+.sessionIdButton:hover {
+  background: #1e3a8a;
+  filter: none;
+}
+
+.workspace {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.topbar {
+  align-items: center;
+  border-bottom: 1px solid #263041;
+  display: flex;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 12px 16px;
+}
+
+.topbar div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.topbar span {
+  color: #94a3b8;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  background: #7f1d1d;
+  border: 1px solid #ef4444;
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
+  color: #fee2e2;
+  left: calc(280px + 16px);
+  max-width: min(720px, calc(100vw - 520px));
+  padding: 10px 14px;
+  pointer-events: none;
+  position: fixed;
+  top: 16px;
+  z-index: 20;
+}
+
+.dangerButton {
+  background: #dc2626;
+}
+
+.dangerButton:hover {
+  background: #b91c1c;
+  filter: none;
+}
+
+.terminal {
+  background: #0b1020;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+}
+
+.terminal.focused {
+  outline: inset 2px #60a5fa;
+}
+
+.terminal .xterm {
+  height: 100%;
+}
+
+.terminal .xterm-viewport {
+  overflow-y: auto;
+}
+
+.inputHint {
+  border-top: 1px solid #263041;
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.sessionRenameInput {
+  background: #0f172a;
+  border: 1px solid #60a5fa;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  outline: none;
+  padding: 2px 4px;
+  width: 100%;
+}
+
+.contextMenuBackdrop {
+  inset: 0;
+  position: fixed;
+  z-index: 30;
+}
+
+.contextMenu {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  position: fixed;
+  z-index: 31;
+}
+
+.contextMenuItem {
+  background: transparent;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.contextMenuItem:hover {
+  background: #334155;
+  filter: none;
+}
+
+.settingsButton {
+  align-self: stretch;
+  background: #172033;
+  border-top: 1px solid #263041;
+  border-radius: 0;
+  color: #cbd5e1;
+  margin-top: auto;
+  padding: 12px 16px;
+  text-align: left;
+}
+
+.settingsOverlay {
+  align-items: flex-end;
+  background: rgb(2 6 23 / 60%);
+  display: flex;
+  inset: 0;
+  justify-content: flex-start;
+  padding: 16px;
+  position: fixed;
+  z-index: 10;
+}
+
+.settingsPanel {
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-left: 8px;
+  max-width: calc(100vw - 32px);
+  padding: 16px;
+  width: 420px;
+}
+
+.settingsHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.settingsHeader div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settingsHeader span,
+.settingField span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.secondaryButton {
+  background: #334155;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.nerdPreview {
+  background: #0b1020;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+}
+
+.nerdPreview span {
+  color: #94a3b8;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 12px;
+}
+
+.nerdPreview strong {
+  color: #e5e7eb;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  line-height: 1.6;
+}
+
+.settingField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SSH 客户端</title>
+<link rel="stylesheet" href="https://unpkg.com/@xterm/xterm@5.5.0/css/xterm.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <!-- 连接表单 -->
+  <div id="connectForm">
+    <h1>SSH 连接</h1>
+    <form id="sshForm">
+      <label>
+        <span>主机地址</span>
+        <input type="text" name="host" placeholder="example.com 或 192.168.1.1" required autofocus>
+      </label>
+      <label>
+        <span>端口</span>
+        <input type="number" name="port" value="22" min="1" max="65535">
+      </label>
+      <label>
+        <span>用户名（可选）</span>
+        <input type="text" name="user" placeholder="留空则用 SSH 配置的默认用户名">
+      </label>
+      <details>
+        <summary>高级选项</summary>
+        <label>
+          <span>额外 SSH 参数</span>
+          <input type="text" name="args" placeholder="-i ~/.ssh/id_ed25519 -o ServerAliveInterval=30">
+        </label>
+      </details>
+      <button type="submit" id="connectBtn">连接</button>
+      <div id="statusMsg"></div>
+    </form>
+
+    <div class="footer">
+      <span>SSH 通过 node-pty 本地代理</span>
+    </div>
+  </div>
+
+  <!-- 终端区域（连接后显示） -->
+  <div id="terminalArea" class="hidden">
+    <div id="topbar">
+      <div>
+        <strong id="connTitle">已连接</strong>
+        <span id="connSubtitle"></span>
+      </div>
+      <button id="disconnectBtn" class="dangerButton">断开</button>
+    </div>
+    <div id="terminal"></div>
+    <div id="statusBar">
+      <span id="connStatus">已连接</span>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "@xterm/xterm": "https://unpkg.com/@xterm/xterm@5.5.0/lib/xterm.mjs",
+    "@xterm/addon-fit": "https://unpkg.com/@xterm/addon-fit@0.10.0/lib/addon-fit.mjs"
+  }
+}
+</script>
+<script type="module" src="client.js"></script>
+</body>
+</html>

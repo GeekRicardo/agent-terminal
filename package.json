@@ -1,0 +1,19 @@
+{
+  "name": "pty-mcp-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @pty-terminal/server --filter @pty-terminal/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @pty-terminal/server test",
+    "typecheck": "pnpm -r typecheck",
+    "start": "node scripts/start-all.mjs",
+    "serve": "pnpm build && pnpm start",
+    "start:ssh": "pnpm --filter @pty-terminal/ssh-client start"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
