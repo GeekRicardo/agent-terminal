@@ -75,9 +75,9 @@ MCP 通过 stdio 方式暴露，agent 可以通过以下工具操作 PTY：
 | `pty_write` | 向 PTY 写入 stdin |
 | `pty_close` | 关闭并清理 session |
 
-### Hebbian / Claude Desktop 配置
+### Claude Desktop 配置
 
-编辑 `/Users/ricardo/.hebbian/mcp.json`（或相应配置文件），添加：
+编辑 `/Users/ricardo/.claude/mcp.json`（或相应配置文件），添加：
 
 ```json
 {
