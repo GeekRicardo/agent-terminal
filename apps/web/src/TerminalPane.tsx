@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
+import '@xterm/xterm/css/xterm.css';
 import type { TerminalSettings } from './settings.js';
 import { getTerminalTheme } from './terminalThemes.js';
 import { getSnapshot, resizeSession, writeToSession } from './api.js';
