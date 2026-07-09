@@ -1,46 +1,45 @@
-import type { MouseEvent } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FitAddon } from '@xterm/addon-fit';
-import { Terminal } from '@xterm/xterm';
-import '@xterm/xterm/css/xterm.css';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import type { PtySessionSummary, ServerEvent } from '@pty-terminal/shared';
-import { closeSession, createSession, getSnapshot, listSessions, resizeSession, updateSessionAlias, writeToSession, wsUrl } from './api.js';
+import { closeSession, createSession, listSessions, updateSessionAlias, wsUrl } from './api.js';
 import { defaultFontFamily, loadTerminalSettings, normalizeTerminalSettings, saveTerminalSettings, type TerminalSettings } from './settings.js';
-import { getTerminalTheme, terminalThemes } from './terminalThemes.js';
+import { terminalThemes } from './terminalThemes.js';
+import { TerminalPane, type TerminalPaneHandle } from './TerminalPane.js';
 import './style.css';
 
 export function App() {
-  const terminalHostRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const fitRef = useRef<FitAddon | null>(null);
-  const activeSessionRef = useRef<string | null>(null);
+  const terminalMapRef = useRef<Map<string, TerminalPaneHandle>>(new Map());
   const [sessions, setSessions] = useState<PtySessionSummary[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [terminalFocused, setTerminalFocused] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<TerminalSettings>(() => loadTerminalSettings());
   const [editingAliasId, setEditingAliasId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; session: PtySessionSummary } | null>(null);
 
-  const activeSession = useMemo(
-    () => sessions.find((session) => session.id === activeSessionId) ?? null,
-    [sessions, activeSessionId],
-  );
+  // Split panes state
+  interface PaneState {
+    paneId: string;
+    sessionId: string | null;
+  }
+  const [panes, setPanes] = useState<PaneState[]>([{ paneId: 'main', sessionId: null }]);
+  const [activePaneId, setActivePaneId] = useState<string>('main');
+  const [splitDirection, setSplitDirection] = useState<'horizontal' | 'vertical'>('horizontal');
 
-  function reportError(cause: unknown, options: { writeToTerminal?: boolean } = {}) {
+  const activeSession = useMemo(() => {
+    const pane = panes.find((p) => p.paneId === activePaneId);
+    return pane?.sessionId ? sessions.find((s) => s.id === pane.sessionId) ?? null : null;
+  }, [panes, activePaneId, sessions]);
+
+  function reportError(cause: unknown) {
     const message = cause instanceof Error ? cause.message : String(cause);
     setError(message);
-
-    if (options.writeToTerminal ?? true) {
-      terminalRef.current?.write(`\r\n\x1b[31m${stripControlCharacters(message)}\x1b[0m\r\n`);
-    }
+    const handle = terminalMapRef.current.get(activePaneId);
+    handle?.getTerminal()?.write(`\r\n\x1b[31m${stripControlCharacters(message)}\x1b[0m\r\n`);
   }
 
   const refreshSessions = useCallback(async () => {
     const nextSessions = await listSessions();
     setSessions(nextSessions);
-    setActiveSessionId((current) => current ?? nextSessions[0]?.id ?? null);
   }, []);
 
   useEffect(() => {
@@ -53,106 +52,13 @@ export function App() {
   }, [error]);
 
   useEffect(() => {
-    const terminal = new Terminal({
-      cursorBlink: true,
-      convertEol: false,
-      fontFamily: normalizeTerminalSettings(settings).fontFamily,
-      fontSize: settings.fontSize,
-      theme: getTerminalTheme(settings.themeId).theme,
-    });
-    const fit = new FitAddon();
-
-    const fitAndResize = () => {
-      fit.fit();
-      const sessionId = activeSessionRef.current;
-      if (sessionId && terminal.cols > 0 && terminal.rows > 0) {
-        void resizeSession(sessionId, terminal.cols, terminal.rows).catch((cause) => reportError(cause));
-      }
-    };
-
-    terminal.loadAddon(fit);
-    terminal.open(terminalHostRef.current!);
-    fitAndResize();
-    terminal.focus();
-
-    const terminalHost = terminalHostRef.current!;
-    const handleFocusIn = () => setTerminalFocused(true);
-    const handleFocusOut = () => setTerminalFocused(false);
-    terminalHost.addEventListener('focusin', handleFocusIn);
-    terminalHost.addEventListener('focusout', handleFocusOut);
-
-    terminal.onData((data) => {
-      const sessionId = activeSessionRef.current;
-      if (sessionId) {
-        void writeToSession(sessionId, data).catch((cause) => reportError(cause));
-      }
-    });
-
-    const handleSelectionMouseUp = () => {
-      if (terminal.hasSelection()) {
-        const text = terminal.getSelection();
-        if (text) {
-          navigator.clipboard.writeText(text).catch(() => {});
-        }
-      }
-    };
-    terminalHost.addEventListener('mouseup', handleSelectionMouseUp);
-
-    terminalRef.current = terminal;
-    fitRef.current = fit;
-
-    const resizeObserver = new ResizeObserver(() => fitAndResize());
-    resizeObserver.observe(terminalHostRef.current!);
-
-    return () => {
-      resizeObserver.disconnect();
-      terminalHost.removeEventListener('focusin', handleFocusIn);
-      terminalHost.removeEventListener('focusout', handleFocusOut);
-      terminalHost.removeEventListener('mouseup', handleSelectionMouseUp);
-      terminal.dispose();
-      terminalRef.current = null;
-      fitRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
     void document.fonts.load(`13px MapleMonoNFLocal`).then(() => {
-      const terminal = terminalRef.current;
-      if (!terminal) {
-        return;
-      }
-
-      terminal.options.fontFamily = normalizeTerminalSettings(settings).fontFamily;
-      terminal.refresh(0, terminal.rows - 1);
-      fitRef.current?.fit();
+      saveTerminalSettings(normalizeTerminalSettings(settings));
     });
   }, [settings]);
 
   useEffect(() => {
-    const terminal = terminalRef.current;
-    if (!terminal) {
-      return;
-    }
-
-    const nextSettings = normalizeTerminalSettings(settings);
-    terminal.options.fontFamily = nextSettings.fontFamily;
-    terminal.options.fontSize = nextSettings.fontSize;
-    terminal.options.theme = getTerminalTheme(nextSettings.themeId).theme;
-    saveTerminalSettings(nextSettings);
-    fitRef.current?.fit();
-
-    const sessionId = activeSessionRef.current;
-    if (sessionId && terminal.cols > 0 && terminal.rows > 0) {
-      void resizeSession(sessionId, terminal.cols, terminal.rows).catch((cause) => reportError(cause));
-    }
-  }, [settings]);
-
-  useEffect(() => {
-    activeSessionRef.current = activeSessionId;
-  }, [activeSessionId]);
-
-  useEffect(() => {
-    void refreshSessions().catch((cause) => reportError(cause, { writeToTerminal: false }));
+    void refreshSessions().catch((cause) => reportError(cause));
   }, [refreshSessions]);
 
   useEffect(() => {
@@ -173,7 +79,6 @@ export function App() {
           const event = JSON.parse(message.data as string) as ServerEvent;
           if (event.type === 'session_created') {
             setSessions((current) => [event.session, ...current.filter((s) => s.id !== event.session.id)]);
-            setActiveSessionId((current) => current ?? event.session.id);
             return;
           }
 
@@ -182,13 +87,16 @@ export function App() {
             return;
           }
 
-          if (event.type === 'session_output' && event.sessionId === activeSessionRef.current) {
-            terminalRef.current?.write(event.chunk);
+          if (event.type === 'session_output') {
+            const handle = terminalMapRef.current.get(event.sessionId);
+            if (handle) {
+              handle.write(event.chunk);
+            }
             return;
           }
 
-          if (event.type !== 'session_output') {
-            void refreshSessions().catch((cause) => reportError(cause, { writeToTerminal: false }));
+          if (event.type !== 'session_exit' && event.type !== 'session_closed') {
+            void refreshSessions().catch((cause) => reportError(cause));
           }
         } catch {
           /* malformed message, ignore */
@@ -223,32 +131,14 @@ export function App() {
     };
   }, [refreshSessions]);
 
-  useEffect(() => {
-    const terminal = terminalRef.current;
-    if (!terminal || !activeSessionId) {
-      terminal?.clear();
-      return;
-    }
-
-    terminal.clear();
-    void getSnapshot(activeSessionId)
-      .then((snapshot) => {
-        terminal.write(snapshot.rawOutput);
-        fitRef.current?.fit();
-        if (terminal.cols > 0 && terminal.rows > 0) {
-          void resizeSession(activeSessionId, terminal.cols, terminal.rows).catch((cause) => reportError(cause));
-        }
-        terminal.focus();
-      })
-      .catch((cause) => reportError(cause));
-  }, [activeSessionId]);
+  // --- Pane management ---
 
   async function handleCreate() {
     try {
       setError(null);
       const result = await createSession();
-      setSessions((current) => [result.session, ...current.filter((session) => session.id !== result.session.id)]);
-      setActiveSessionId(result.session.id);
+      setSessions((current) => [result.session, ...current.filter((s) => s.id !== result.session.id)]);
+      setPanes((current) => current.map((p) => (p.paneId === activePaneId ? { ...p, sessionId: result.session.id } : p)));
     } catch (cause) {
       reportError(cause);
     }
@@ -258,11 +148,42 @@ export function App() {
     try {
       setError(null);
       await closeSession(sessionId);
-      setSessions((current) => current.filter((session) => session.id !== sessionId));
-      setActiveSessionId((current) => (current === sessionId ? null : current));
+      setSessions((current) => current.filter((s) => s.id !== sessionId));
+      setPanes((current) => current.map((p) => (p.sessionId === sessionId ? { ...p, sessionId: null } : p)));
     } catch (cause) {
       reportError(cause);
     }
+  }
+
+  function handlePaneSessionClick(sessionId: string) {
+    setPanes((current) => current.map((p) => (p.paneId === activePaneId ? { ...p, sessionId } : p)));
+  }
+
+  function handleSplit(direction: 'horizontal' | 'vertical') {
+    const newPaneId = crypto.randomUUID();
+    setSplitDirection(direction);
+    setPanes((current) => [...current, { paneId: newPaneId, sessionId: null }]);
+    setActivePaneId(newPaneId);
+    void createSession().then((result) => {
+      setSessions((current) => [result.session, ...current.filter((s) => s.id !== result.session.id)]);
+      setPanes((current) => current.map((p) => (p.paneId === newPaneId ? { ...p, sessionId: result.session.id } : p)));
+    });
+  }
+
+  function handleUnsplit() {
+    if (panes.length <= 1) {
+      return;
+    }
+
+    setPanes([panes[0]]);
+    setActivePaneId(panes[0].paneId);
+  }
+
+  function paneReconnect(paneId: string) {
+    void createSession().then((result) => {
+      setSessions((current) => [result.session, ...current.filter((s) => s.id !== result.session.id)]);
+      setPanes((current) => current.map((p) => (p.paneId === paneId ? { ...p, sessionId: result.session.id } : p)));
+    });
   }
 
   async function copySessionId(event: MouseEvent<HTMLButtonElement>, sessionId: string) {
@@ -272,7 +193,7 @@ export function App() {
       await navigator.clipboard.writeText(sessionId);
       setError(`已复制 session id: ${sessionId}`);
     } catch {
-      reportError('复制 session id 失败', { writeToTerminal: false });
+      reportError('复制 session id 失败');
     }
   }
 
@@ -282,7 +203,7 @@ export function App() {
       const session = await updateSessionAlias(sessionId, alias);
       setSessions((current) => current.map((item) => (item.id === session.id ? session : item)));
     } catch (cause) {
-      reportError(cause, { writeToTerminal: false });
+      reportError(cause);
     }
   }
 
@@ -302,39 +223,159 @@ export function App() {
       setError(`已复制 ${label}`);
       setContextMenu(null);
     } catch {
-      reportError(`复制 ${label} 失败`, { writeToTerminal: false });
+      reportError(`复制 ${label} 失败`);
     }
+  }
+
+  // --- Drag reorder ---
+
+  function handleDragStart(e: DragEvent<HTMLDivElement>, index: number) {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  }
+
+  function handleDragOver(e: DragEvent<HTMLDivElement>, index: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    (e.currentTarget as HTMLElement).style.opacity = '0.5';
+  }
+
+  function handleDragLeave(e: DragEvent<HTMLDivElement>) {
+    (e.currentTarget as HTMLElement).style.opacity = '';
+  }
+
+  function handleDrop(e: DragEvent<HTMLDivElement>, toIndex: number) {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).style.opacity = '';
+    const fromIndex = Number(e.dataTransfer.getData('text/plain'));
+    if (fromIndex === toIndex) {
+      return;
+    }
+
+    setSessions((current) => {
+      const items = [...current];
+      const [moved] = items.splice(fromIndex, 1);
+      items.splice(toIndex, 0, moved);
+      return items;
+    });
   }
 
   function updateSettings(nextSettings: TerminalSettings) {
     setSettings(normalizeTerminalSettings(nextSettings));
   }
 
+  // --- Keyboard shortcuts ---
+
+  useEffect(() => {
+    const sessionsList = sessions;
+    const activeSid = activeSession?.id;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (!e.metaKey || !e.shiftKey) {
+        return;
+      }
+
+      if (e.key === '[') {
+        e.preventDefault();
+        const idx = sessionsList.findIndex((s) => s.id === activeSid);
+        if (idx > 0) {
+          handlePaneSessionClick(sessionsList[idx - 1].id);
+        }
+        return;
+      }
+
+      if (e.key === ']') {
+        e.preventDefault();
+        const idx = sessionsList.findIndex((s) => s.id === activeSid);
+        if (idx < sessionsList.length - 1) {
+          handlePaneSessionClick(sessionsList[idx + 1].id);
+        }
+        return;
+      }
+
+      if (e.key === '-') {
+        e.preventDefault();
+        if (panes.length <= 1) {
+          handleSplit('horizontal');
+        } else {
+          setSplitDirection((d) => (d === 'horizontal' ? 'vertical' : 'horizontal'));
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, activeSession?.id, panes.length]);
+
+  // --- Render ---
+
+  function renderTerminalPane(pane: PaneState) {
+    return (
+      <TerminalPane
+        key={pane.paneId}
+        sessionId={pane.sessionId}
+        settings={settings}
+        onReady={(handle) => terminalMapRef.current.set(pane.paneId, handle)}
+        onUnready={() => terminalMapRef.current.delete(pane.paneId)}
+        onError={(cause) => reportError(cause)}
+        onReconnect={() => paneReconnect(pane.paneId)}
+      />
+    );
+  }
+
+  function renderWorkspace() {
+    if (panes.length === 1) {
+      return (
+        <div className="paneWrapper" onClick={() => setActivePaneId(panes[0].paneId)}>
+          {renderTerminalPane(panes[0])}
+        </div>
+      );
+    }
+
+    return (
+      <Group orientation={splitDirection} className="paneGroup">
+        {panes.map((pane, i) => (
+          <Fragment key={pane.paneId}>
+            {i > 0 && <Separator className="resizeHandle" />}
+            <Panel minSize={15} onClick={() => setActivePaneId(pane.paneId)}>
+              <div className={`paneWrapper${pane.paneId === activePaneId ? ' paneActive' : ''}`}>
+                {renderTerminalPane(pane)}
+              </div>
+            </Panel>
+          </Fragment>
+        ))}
+      </Group>
+    );
+  }
+
   return (
     <main className="app">
-      <aside className="sidebar">
-        <div className="sidebarHeader">
-          <h1>PTY Sessions</h1>
-          <button onClick={() => void handleCreate()}>新建</button>
-        </div>
-        <div className="sessionList">
-          {sessions.map((session) => (
+      <header className="tabBar">
+        <button className="tabIconBtn" onClick={() => setSettingsOpen(true)} title="设置 (⌘⇧,)">⚙</button>
+        <div className="tabList">
+          {sessions.map((session, index) => (
             <div
-              className={session.id === activeSessionId ? 'session active' : 'session'}
+              className={`tab${activeSession?.id === session.id ? ' active' : ''}`}
               key={session.id}
-              onClick={() => setActiveSessionId(session.id)}
+              draggable
+              onClick={() => handlePaneSessionClick(session.id)}
               onContextMenu={(event) => openContextMenu(event as unknown as MouseEvent, session)}
-              role="button"
+              role="tab"
               tabIndex={0}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
-                  setActiveSessionId(session.id);
+                  handlePaneSessionClick(session.id);
                 }
               }}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
             >
               {editingAliasId === session.id ? (
                 <input
-                  className="sessionRenameInput"
+                  className="tabRenameInput"
                   defaultValue={session.alias ?? ''}
                   placeholder={session.command}
                   autoFocus
@@ -344,48 +385,43 @@ export function App() {
                     void handleRename(session.id, e.target.value);
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      (e.target as HTMLInputElement).blur();
-                    }
-                    if (e.key === 'Escape') {
-                      setEditingAliasId(null);
-                    }
+                    if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+                    if (e.key === 'Escape') { setEditingAliasId(null); }
                   }}
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <span className="sessionTitle" onDoubleClick={() => setEditingAliasId(session.id)}>
+                <span className="tabTitle" onDoubleClick={() => setEditingAliasId(session.id)}>
                   {session.alias || session.command}
                 </span>
               )}
-              {session.alias ? <span className="sessionCommand">{session.command}</span> : null}
-              <span className="sessionMeta">
-                {session.status} ·{' '}
-                <button className="sessionIdButton" title="复制完整 session id" onClick={(event) => void copySessionId(event, session.id)}>
-                  {session.id.slice(0, 8)}
-                </button>
-              </span>
+              <span className="tabMeta">{session.id.slice(0, 8)}</span>
+              <button className="tabClose" onClick={(e) => { e.stopPropagation(); void handleClose(session.id); }} title="关闭会话">×</button>
             </div>
           ))}
+          <button className="tabNew" onClick={() => void handleCreate()} title="新建会话 (⌘⇧N)">+</button>
         </div>
-        <button className="settingsButton" onClick={() => setSettingsOpen(true)}>设置</button>
-      </aside>
+        <div className="tabActions">
+          <span className="tabKeyHint">⌘⇧[ ]</span>
+          {panes.length > 1 ? (
+            <button className="tabIconBtn" onClick={handleUnsplit} title="取消拆分">⊞</button>
+          ) : null}
+          <button className="tabIconBtn" onClick={() => {
+            if (panes.length <= 1) {
+              handleSplit('horizontal');
+            } else {
+              setSplitDirection((d) => (d === 'horizontal' ? 'vertical' : 'horizontal'));
+            }
+          }} title="切换拆分方向 (⌘⇧-)">
+            {splitDirection === 'horizontal' ? '↔' : '↕'}
+          </button>
+          {activeSession ? (
+            <button className="tabIconBtn tabIconDanger" onClick={() => void handleClose(activeSession.id)} title="停止会话">✕</button>
+          ) : null}
+        </div>
+      </header>
       <section className="workspace">
-        <header className="topbar">
-          <div>
-            <strong>{activeSession ? activeSession.alias || activeSession.command : '未选择会话'}</strong>
-            {activeSession ? <span>{activeSession.command} · {activeSession.cwd}</span> : null}
-          </div>
-          {activeSession ? <button className="dangerButton" onClick={() => void handleClose(activeSession.id)}>停止</button> : null}
-        </header>
-        <div
-          ref={terminalHostRef}
-          className={terminalFocused ? 'terminal focused' : 'terminal'}
-          onMouseDown={() => terminalRef.current?.focus()}
-        />
-        {activeSession ? (
-          <div className="inputHint">网页终端已连接当前会话。密码、验证码等敏感输入请直接在这里键入，不会经过 agent。</div>
-        ) : null}
+        {renderWorkspace()}
       </section>
       {error ? <div className="error">{error}</div> : null}
       {contextMenu ? (
@@ -407,7 +443,6 @@ export function App() {
               </div>
               <button className="secondaryButton" onClick={() => setSettingsOpen(false)}>关闭</button>
             </header>
-
             <label className="settingField">
               <span>字体</span>
               <input
@@ -423,7 +458,6 @@ export function App() {
               <span>图标预览</span>
               <strong>                </strong>
             </div>
-
             <label className="settingField">
               <span>字号</span>
               <input
@@ -434,7 +468,6 @@ export function App() {
                 onChange={(event) => updateSettings({ ...settings, fontSize: Number(event.target.value) })}
               />
             </label>
-
             <label className="settingField">
               <span>主题配色</span>
               <select
