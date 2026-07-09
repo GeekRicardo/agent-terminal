@@ -40,6 +40,9 @@ export function App() {
   const refreshSessions = useCallback(async () => {
     const nextSessions = await listSessions();
     setSessions(nextSessions);
+    if (nextSessions.length > 0) {
+      setPanes((current) => current.map((p) => (p.sessionId ? p : { ...p, sessionId: nextSessions[0].id })));
+    }
   }, []);
 
   useEffect(() => {
@@ -56,6 +59,18 @@ export function App() {
       saveTerminalSettings(normalizeTerminalSettings(settings));
     });
   }, [settings]);
+
+  // Auto-create a session if none exists on initial load
+  const initialLoadRef = useRef(true);
+  useEffect(() => {
+    if (sessions.length > 0 || !initialLoadRef.current) {
+      initialLoadRef.current = false;
+      return;
+    }
+
+    initialLoadRef.current = false;
+    void handleCreate();
+  }, [sessions]);
 
   useEffect(() => {
     void refreshSessions().catch((cause) => reportError(cause));
