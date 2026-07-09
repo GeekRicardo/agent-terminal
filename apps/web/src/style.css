@@ -60,8 +60,8 @@ select {
 }
 
 .app {
-  display: grid;
-  grid-template-rows: auto 1fr;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
 }
 
@@ -70,6 +70,7 @@ select {
   background: #0f172a;
   border-bottom: 1px solid #263041;
   display: flex;
+  flex: none;
   gap: 4px;
   min-height: 36px;
   overflow: hidden;
@@ -211,10 +212,8 @@ select {
 }
 
 .workspace {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
-  min-width: 0;
+  overflow: hidden;
 }
 
 .error {
@@ -243,6 +242,7 @@ select {
 
 .terminal {
   background: #0b1020;
+  flex: 1;
   min-height: 0;
   overflow: hidden;
   padding: 8px;
@@ -261,6 +261,7 @@ select {
 }
 
 .paneGroup {
+  flex: 1;
   min-height: 0;
 }
 
