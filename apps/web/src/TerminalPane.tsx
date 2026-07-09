@@ -3,6 +3,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import type { TerminalSettings } from './settings.js';
+import { defaultFontFamily, normalizeTerminalSettings } from './settings.js';
 import { getTerminalTheme } from './terminalThemes.js';
 import { getSnapshot, resizeSession, writeToSession } from './api.js';
 
@@ -38,12 +39,13 @@ export function TerminalPane({ sessionId, settings, onReady, onUnready, onError,
 
   // Init terminal (once)
   useEffect(() => {
+    const norm = normalizeTerminalSettings(settings);
     const terminal = new Terminal({
       cursorBlink: true,
       convertEol: false,
-      fontFamily: settings.fontFamily,
-      fontSize: settings.fontSize,
-      theme: getTerminalTheme(settings.themeId).theme,
+      fontFamily: norm.fontFamily,
+      fontSize: norm.fontSize,
+      theme: getTerminalTheme(norm.themeId).theme,
     });
     const fit = new FitAddon();
     terminal.loadAddon(fit);
@@ -113,9 +115,10 @@ export function TerminalPane({ sessionId, settings, onReady, onUnready, onError,
       return;
     }
 
-    terminal.options.fontFamily = settings.fontFamily;
-    terminal.options.fontSize = settings.fontSize;
-    terminal.options.theme = getTerminalTheme(settings.themeId).theme;
+    const norm = normalizeTerminalSettings(settings);
+    terminal.options.fontFamily = norm.fontFamily;
+    terminal.options.fontSize = norm.fontSize;
+    terminal.options.theme = getTerminalTheme(norm.themeId).theme;
     fitRef.current?.fit();
   }, [settings]);
 
